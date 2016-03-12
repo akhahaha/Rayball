@@ -1,3 +1,9 @@
+# Projects
+*.ppm
+
+# Jetbrains
+.idea/
+
 # Compiled Object files
 *.slo
 *.lo
