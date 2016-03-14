@@ -336,7 +336,7 @@ void render() {
 // -------------------------------------------------------------------
 // PPM saving
 
-void savePPM(int Width, int Height, char *fname, unsigned char *pixels) {
+void savePPM(int Width, int Height, const char *fname, unsigned char *pixels) {
     FILE *fp;
     const int maxVal = 255;
 
@@ -368,8 +368,8 @@ void saveFile() {
                 buf[y * g_width * 3 + x * 3 + i] = (unsigned char) (color * 255.9f);
             }
 
-    // TODO: change file name based on input file name.
-    savePPM(g_width, g_height, "output.ppm", buf);
+    // Use provided output filename
+    savePPM(g_width, g_height, g_outputFilename.c_str(), buf);
     delete[] buf;
 }
 
