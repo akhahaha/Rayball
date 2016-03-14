@@ -274,7 +274,36 @@ vec4 trace(const Ray &ray) {
     if (intersection.distance != -1) {
         // Calculate initial intersection color with ambient intensity
         color = intersection.sphere->color * intersection.sphere->Ka * g_ambientIntensity;
+
+        // Calculate Blinn-Phong shading from light sources
+        vec4 diffusion = vec4(0, 0, 0, 0);
+        vec4 specular = vec4(0, 0, 0, 0);
+        for (Light light : g_lights) {
+            // Generate ray from intersection point to light
+            Ray lightRay;
+            lightRay.origin = intersection.point;
+            lightRay.dir = normalize(light.position - intersection.point);
+
+            // Determine if the light source is not obstructed
+            Intersection lightIntersection = calculateNearestIntersection(lightRay);
+            if (lightIntersection.distance == -1) {
+                // Calculate the intensity of diffuse light
+                float diffusionIntensity = dot(intersection.normal, lightRay.dir);
+                if (diffusionIntensity > 0) {
+                    diffusion += diffusionIntensity * light.color * intersection.sphere->color;
+
+                    // Calculate the half vector between light vector and the view vector
+                    vec4 H = normalize(lightRay.dir - ray.dir);
+
+                    // Calculate the intensity of specular light
+                    float specularIntensity = dot(intersection.normal, H);
+                    specular += powf(powf(specularIntensity, intersection.sphere->specularExponent), 3) * light.color;
+                }
+            }
         }
+
+        // Apply diffusion and specular values
+        color += diffusion * intersection.sphere->Kd + specular * intersection.sphere->Ks;
     }
 
     return color;
