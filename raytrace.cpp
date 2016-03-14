@@ -359,12 +359,14 @@ void savePPM(int Width, int Height, char *fname, unsigned char *pixels) {
 
 void saveFile() {
     // Convert color components from floats to unsigned chars.
-    // TODO: clamp values if out of range.
     unsigned char *buf = new unsigned char[g_width * g_height * 3];
     for (int y = 0; y < g_height; y++)
         for (int x = 0; x < g_width; x++)
-            for (int i = 0; i < 3; i++)
-                buf[y * g_width * 3 + x * 3 + i] = (unsigned char) (((float *) g_colors[y * g_width + x])[i] * 255.9f);
+            for (int i = 0; i < 3; i++) {
+                float color = ((float *) g_colors[y * g_width + x])[i];
+                color = fminf(color, 1); // Clamp color value to 1
+                buf[y * g_width * 3 + x * 3 + i] = (unsigned char) (color * 255.9f);
+            }
 
     // TODO: change file name based on input file name.
     savePPM(g_width, g_height, "output.ppm", buf);
