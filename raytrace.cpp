@@ -263,12 +263,21 @@ Intersection calculateNearestIntersection(const Ray &ray) {
     return intersection;
 }
 
-// -------------------------------------------------------------------
-// Ray tracing
-
+/**
+ * Trace the color of a ray.
+ */
 vec4 trace(const Ray &ray) {
-    // TODO: implement your ray tracing routine here.
-    return vec4(0.0f, 0.0f, 0.0f, 1.0f);
+    vec4 color = g_backgroundColor;
+
+    // Get the nearest intersecting sphere
+    Intersection intersection = calculateNearestIntersection(ray);
+    if (intersection.distance != -1) {
+        // Calculate initial intersection color with ambient intensity
+        color = intersection.sphere->color * intersection.sphere->Ka * g_ambientIntensity;
+        }
+    }
+
+    return color;
 }
 
 /**
