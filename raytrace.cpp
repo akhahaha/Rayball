@@ -210,12 +210,13 @@ vec4 trace(const Ray &ray) {
     return vec4(0.0f, 0.0f, 0.0f, 1.0f);
 }
 
+/**
+ * Return the direction from the origin to a pixel.
+ */
 vec4 getDir(int ix, int iy) {
-    // TODO: modify this. This should return the direction from the origin
-    // to pixel (ix, iy), normalized.
-    vec4 dir;
-    dir = vec4(0.0f, 0.0f, -1.0f, 0.0f);
-    return dir;
+    float x = g_left + ((float) ix / g_width) * (g_right - g_left);
+    float y = g_bottom + ((float) iy / g_height) * (g_top - g_bottom);
+    return vec4(x, y, -g_near, 0.0f);
 }
 
 void renderPixel(int ix, int iy) {
