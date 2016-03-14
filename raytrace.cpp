@@ -11,6 +11,7 @@ using namespace std;
 // Program constants
 #define MAX_SPHERES 5
 #define MAX_LIGHTS 5
+#define MIN_HIT_TIME 1.0f
 
 // STRUCTURES
 struct Ray {
@@ -34,6 +35,14 @@ struct Light {
     string id;
     vec4 position;
     vec4 color;
+};
+
+struct Intersection {
+    Ray ray;
+    float distance;
+    vec4 point;
+    Sphere *sphere;
+    vec4 normal;
 };
 
 
@@ -195,12 +204,64 @@ void setColor(int ix, int iy, const vec4 &color) {
     g_colors[iy2 * g_width + ix] = color;
 }
 
+/**
+ * Determine the nearest sphere intersection of a ray.
+ */
+Intersection calculateNearestIntersection(const Ray &ray) {
+    float nearestIntersectionDistance = -1;
+    Sphere *intersectedSphere = nullptr;
+    for (Sphere &sphere : g_spheres) {
+        // Obtain the sphere inverse transform
+        mat4 sphereIVT;
+        InvertMatrix(Scale(sphere.scale), sphereIVT);
 
-// -------------------------------------------------------------------
-// Intersection routine
+        vec4 S = sphereIVT * (sphere.position - ray.origin); // -(O - C)
+        vec4 C = sphereIVT * ray.dir;
 
-// TODO: add your ray-sphere intersection routine here.
+        // Quadratic equation: |c|^2t^2 + 2(S.tc) + |S|^2 - 1
+        float a = dot(C, C);
+        float b = dot(S, C);
+        float c = dot(S, S) - 1;
 
+        // Solve equation
+        float solution = -1;
+        float discriminant = b * b - a * c; // Value under the root
+
+        if (discriminant < 0) {
+            // No solutions: line does not intersect
+            continue;
+        } else if (discriminant == 0) {
+            // Single solution: line intersects at one point
+            solution = b / a;
+        } else {
+            // Two solutions: line intersects at two points
+            float root = sqrtf(discriminant);
+            solution = fminf((b - root) / a, (b + root) / a);
+        }
+
+        if (solution > MIN_HIT_TIME && (nearestIntersectionDistance == -1 || solution < nearestIntersectionDistance)) {
+            nearestIntersectionDistance = solution;
+            intersectedSphere = &sphere;
+        }
+    }
+
+    Intersection intersection;
+    intersection.ray = ray;
+    intersection.distance = nearestIntersectionDistance;
+    if (nearestIntersectionDistance != -1) {
+        intersection.point = ray.origin + ray.dir * nearestIntersectionDistance;
+        intersection.sphere = intersectedSphere;
+
+        // Calculate the normal of the intersection
+        vec4 normal = intersection.point - intersection.sphere->position;
+        mat4 sphereTransposeIVT;
+        InvertMatrix(transpose(Scale(intersection.sphere->scale)), sphereTransposeIVT);
+        normal.w = 0;
+        intersection.normal = normalize(sphereTransposeIVT * sphereTransposeIVT * normal);
+    }
+
+    return intersection;
+}
 
 // -------------------------------------------------------------------
 // Ray tracing
