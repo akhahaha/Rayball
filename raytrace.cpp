@@ -4,9 +4,13 @@
 #include <fstream>
 #include <sstream>
 #include <vector>
+#include <map>
 
 using namespace std;
 
+// Program constants
+#define MAX_SPHERES 5
+#define MAX_LIGHTS 5
 
 // STRUCTURES
 struct Ray {
@@ -72,12 +76,92 @@ float toFloat(const string &s) {
     return f;
 }
 
+enum Datatypes {
+    NEAR,
+    LEFT,
+    RIGHT,
+    TOP,
+    BOTTOM,
+    RES,
+    SPHERE,
+    LIGHT,
+    BACK,
+    AMBIENT,
+    OUTPUT
+};
+static map<string, Datatypes> s_datatypes;
+
+void initializeDatatypes() {
+    s_datatypes["NEAR"] = NEAR;
+    s_datatypes["LEFT"] = LEFT;
+    s_datatypes["RIGHT"] = RIGHT;
+    s_datatypes["TOP"] = TOP;
+    s_datatypes["BOTTOM"] = BOTTOM;
+    s_datatypes["RES"] = RES;
+    s_datatypes["SPHERE"] = SPHERE;
+    s_datatypes["LIGHT"] = LIGHT;
+    s_datatypes["BACK"] = BACK;
+    s_datatypes["AMBIENT"] = AMBIENT;
+    s_datatypes["OUTPUT"] = OUTPUT;
+}
+
 void parseLine(const vector<string> &vs) {
-    //TODO: add parsing of NEAR, LEFT, RIGHT, BOTTOM, TOP, SPHERE, LIGHT, BACK, AMBIENT, OUTPUT.
-    if (vs[0] == "RES") {
-        g_width = (int) toFloat(vs[1]);
-        g_height = (int) toFloat(vs[2]);
-        g_colors.resize(g_width * g_height);
+    switch (s_datatypes[vs[0]]) {
+        case NEAR:
+            g_near = toFloat(vs[1]);
+            break;
+        case LEFT:
+            g_left = toFloat(vs[1]);
+            break;
+        case RIGHT:
+            g_right = toFloat(vs[1]);
+            break;
+        case TOP:
+            g_top = toFloat(vs[1]);
+            break;
+        case BOTTOM:
+            g_bottom = toFloat(vs[1]);
+            break;
+        case RES:
+            g_width = (int) toFloat(vs[1]);
+            g_height = (int) toFloat(vs[2]);
+            g_colors.resize(g_width * g_height);
+            break;
+        case SPHERE:
+            if (g_spheres.size() < MAX_SPHERES) {
+                Sphere sphere;
+                sphere.id = vs[1];
+                sphere.position = toVec4(vs[2], vs[3], vs[4]);
+                sphere.scale = vec3(toFloat(vs[5]), toFloat(vs[6]), toFloat(vs[7]));
+                sphere.color = toVec4(vs[8], vs[9], vs[10]);
+                sphere.Ka = toFloat(vs[11]);
+                sphere.Kd = toFloat(vs[12]);
+                sphere.Ks = toFloat(vs[13]);
+                sphere.Kr = toFloat(vs[14]);
+                sphere.specularExponent = toFloat(vs[15]);
+
+                g_spheres.push_back(sphere);
+            }
+            break;
+        case LIGHT:
+            if (g_lights.size() < MAX_LIGHTS) {
+                Light light;
+                light.id = vs[1];
+                light.position = toVec4(vs[2], vs[3], vs[4]);
+                light.color = toVec4(vs[5], vs[6], vs[7]);
+
+                g_lights.push_back(light);
+            }
+            break;
+        case BACK:
+            g_backgroundColor = toVec4(vs[1], vs[2], vs[3]);
+            break;
+        case AMBIENT:
+            g_ambientIntensity = toVec4(vs[1], vs[2], vs[3]);
+            break;
+        case OUTPUT:
+            g_outputFilename = vs[1];
+            break;
     }
 }
 
@@ -192,6 +276,8 @@ void saveFile() {
 // Main
 
 int main(int argc, char *argv[]) {
+    initializeDatatypes();
+
     if (argc < 2) {
         cout << "Usage: template-rt <input_file.txt>" << endl;
         exit(1);
