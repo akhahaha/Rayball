@@ -1,35 +1,57 @@
-//
-// template-rt.cpp
-//
-
 #define _CRT_SECURE_NO_WARNINGS
 
 #include "matm.h"
-#include <iostream>
 #include <fstream>
 #include <sstream>
-#include <string>
 #include <vector>
 
 using namespace std;
 
-int g_width;
-int g_height;
 
+// STRUCTURES
 struct Ray {
     vec4 origin;
     vec4 dir;
 };
 
-// TODO: add structs for spheres, lights and anything else you may need.
+struct Sphere {
+    string id;
+    vec4 position;
+    vec3 scale;
+    vec4 color;
+    float Ka;
+    float Kd;
+    float Ks;
+    float Kr;
+    float specularExponent;
+};
+
+struct Light {
+    string id;
+    vec4 position;
+    vec4 color;
+};
+
 
 vector<vec4> g_colors;
 
+// SCENE DATA
+// Planes
+float g_near;
 float g_left;
 float g_right;
 float g_top;
 float g_bottom;
-float g_near;
+
+// Resolution
+int g_width;
+int g_height;
+
+vector<Sphere> g_spheres;
+vector<Light> g_lights;
+vec4 g_backgroundColor;
+vec4 g_ambientIntensity;
+string g_outputFilename;
 
 
 // -------------------------------------------------------------------
