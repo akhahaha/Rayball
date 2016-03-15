@@ -12,11 +12,13 @@ using namespace std;
 #define MAX_SPHERES 5
 #define MAX_LIGHTS 5
 #define MIN_HIT_TIME 1.0f
+#define MAX_REFLECTIONS 3
 
 // STRUCTURES
 struct Ray {
     vec4 origin;
     vec4 dir;
+    int reflectionLevel;
 };
 
 struct Sphere {
@@ -269,42 +271,61 @@ Intersection calculateNearestIntersection(const Ray &ray) {
 vec4 trace(const Ray &ray) {
     vec4 color = g_backgroundColor;
 
+    // Limit reflection level
+    if (ray.reflectionLevel >= MAX_REFLECTIONS) {
+        return vec4();
+    }
+
     // Get the nearest intersecting sphere
     Intersection intersection = calculateNearestIntersection(ray);
-    if (intersection.distance != -1) {
-        // Calculate initial intersection color with ambient intensity
-        color = intersection.sphere->color * intersection.sphere->Ka * g_ambientIntensity;
 
-        // Calculate Blinn-Phong shading from light sources
-        vec4 diffusion = vec4(0, 0, 0, 0);
-        vec4 specular = vec4(0, 0, 0, 0);
-        for (Light light : g_lights) {
-            // Generate ray from intersection point to light
-            Ray lightRay;
-            lightRay.origin = intersection.point;
-            lightRay.dir = normalize(light.position - intersection.point);
+    if (intersection.distance == -1 && ray.reflectionLevel == 0) {
+        // Return background color if no intersection and is an initial ray
+        return g_backgroundColor;
+    } else if (intersection.distance == -1) {
+        // Return no color if no intersection and not an initial ray
+        return vec4();
+    }
 
-            // Determine if the light source is not obstructed
-            Intersection lightIntersection = calculateNearestIntersection(lightRay);
-            if (lightIntersection.distance == -1) {
-                // Calculate the intensity of diffuse light
-                float diffusionIntensity = dot(intersection.normal, lightRay.dir);
-                if (diffusionIntensity > 0) {
-                    diffusion += diffusionIntensity * light.color * intersection.sphere->color;
+    // Calculate initial intersection color with ambient intensity
+    color = intersection.sphere->color * intersection.sphere->Ka * g_ambientIntensity;
 
-                    // Calculate the half vector between light vector and the view vector
-                    vec4 H = normalize(lightRay.dir - ray.dir);
+    // Calculate Blinn-Phong shading from light sources
+    vec4 diffusion = vec4(0, 0, 0, 0);
+    vec4 specular = vec4(0, 0, 0, 0);
+    for (Light light : g_lights) {
+        // Generate ray from intersection point to light
+        Ray lightRay;
+        lightRay.origin = intersection.point;
+        lightRay.dir = normalize(light.position - intersection.point);
 
-                    // Calculate the intensity of specular light
-                    float specularIntensity = dot(intersection.normal, H);
-                    specular += powf(powf(specularIntensity, intersection.sphere->specularExponent), 3) * light.color;
-                }
+        // Determine if the light source is not obstructed
+        Intersection lightIntersection = calculateNearestIntersection(lightRay);
+        if (lightIntersection.distance == -1) {
+            // Calculate the intensity of diffuse light
+            float diffusionIntensity = dot(intersection.normal, lightRay.dir);
+            if (diffusionIntensity > 0) {
+                diffusion += diffusionIntensity * light.color * intersection.sphere->color;
+
+                // Calculate the half vector between light vector and the view vector
+                vec4 H = normalize(lightRay.dir - ray.dir);
+
+                // Calculate the intensity of specular light
+                float specularIntensity = dot(intersection.normal, H);
+                specular += powf(powf(specularIntensity, intersection.sphere->specularExponent), 3) * light.color;
             }
         }
-
-        // Apply diffusion and specular values
-        color += diffusion * intersection.sphere->Kd + specular * intersection.sphere->Ks;
     }
+
+    // Apply diffusion and specular values
+    color += diffusion * intersection.sphere->Kd + specular * intersection.sphere->Ks;
+
+    // Calculate reflections
+    Ray reflectRay;
+    reflectRay.origin = intersection.point;
+    reflectRay.dir = normalize(ray.dir - 2.0f * intersection.normal * dot(intersection.normal, ray.dir));
+    reflectRay.reflectionLevel = ray.reflectionLevel + 1;
+    color += trace(reflectRay) * intersection.sphere->Kr;
 
     return color;
 }
@@ -322,6 +343,7 @@ void renderPixel(int ix, int iy) {
     Ray ray;
     ray.origin = vec4(0.0f, 0.0f, 0.0f, 1.0f);
     ray.dir = getDir(ix, iy);
+    ray.reflectionLevel = 0;
     vec4 color = trace(ray);
     setColor(ix, iy, color);
 }
