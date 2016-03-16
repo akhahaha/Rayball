@@ -12,6 +12,7 @@ using namespace std;
 #define MAX_SPHERES 5
 #define MAX_LIGHTS 5
 #define MIN_HIT_TIME 1.0f
+#define MIN_RELECT_HIT_TIME 0.0001f
 #define MAX_REFLECTIONS 3
 
 // STRUCTURES
@@ -31,6 +32,7 @@ struct Sphere {
     float Ks;
     float Kr;
     float specularExponent;
+    mat4 inverseTransform;
 };
 
 struct Light {
@@ -43,6 +45,7 @@ struct Intersection {
     Ray ray;
     float distance;
     vec4 point;
+    bool interiorPoint;
     Sphere *sphere;
     vec4 normal;
 };
@@ -150,6 +153,7 @@ void parseLine(const vector<string> &vs) {
                 sphere.Ks = toFloat(vs[13]);
                 sphere.Kr = toFloat(vs[14]);
                 sphere.specularExponent = toFloat(vs[15]);
+                InvertMatrix(Scale(sphere.scale), sphere.inverseTransform);
 
                 g_spheres.push_back(sphere);
             }
@@ -210,15 +214,14 @@ void setColor(int ix, int iy, const vec4 &color) {
  * Determine the nearest sphere intersection of a ray.
  */
 Intersection calculateNearestIntersection(const Ray &ray) {
-    float nearestIntersectionDistance = -1;
-    Sphere *intersectedSphere = nullptr;
-    for (Sphere &sphere : g_spheres) {
-        // Obtain the sphere inverse transform
-        mat4 sphereIVT;
-        InvertMatrix(Scale(sphere.scale), sphereIVT);
+    Intersection intersection;
+    intersection.ray = ray;
+    intersection.distance = -1;
+    intersection.interiorPoint = false;
 
-        vec4 S = sphereIVT * (sphere.position - ray.origin); // -(O - C)
-        vec4 C = sphereIVT * ray.dir;
+    for (Sphere &sphere : g_spheres) {
+        vec4 S = sphere.inverseTransform * (sphere.position - ray.origin); // -(O - C)
+        vec4 C = sphere.inverseTransform * ray.dir;
 
         // Quadratic equation: |c|^2t^2 + 2(S.tc) + |S|^2 - 1
         float a = dot(C, C);
@@ -229,6 +232,8 @@ Intersection calculateNearestIntersection(const Ray &ray) {
         float solution = -1;
         float discriminant = b * b - a * c; // Value under the root
 
+        bool interiorPoint = false;
+
         if (discriminant < 0) {
             // No solutions: line does not intersect
             continue;
@@ -238,28 +243,43 @@ Intersection calculateNearestIntersection(const Ray &ray) {
         } else {
             // Two solutions: line intersects at two points
             float root = sqrtf(discriminant);
-            solution = fminf((b - root) / a, (b + root) / a);
+            float solution1 = (b - root) / a;
+            float solution2 = (b + root) / a;
+
+            // Use the smallest valid solution
+            solution = fminf(solution1, solution2);
+            if (solution <= MIN_RELECT_HIT_TIME || (ray.reflectionLevel == 0 && solution <= MIN_HIT_TIME)) {
+                solution = fmaxf(solution1, solution2);
+                interiorPoint = true;
+            }
         }
 
-        if (solution > MIN_HIT_TIME && (nearestIntersectionDistance == -1 || solution < nearestIntersectionDistance)) {
-            nearestIntersectionDistance = solution;
-            intersectedSphere = &sphere;
+        // Validate solution
+        if (solution <= MIN_RELECT_HIT_TIME || (ray.reflectionLevel == 0 && solution <= MIN_HIT_TIME)) {
+            continue;
+        }
+
+        if ((intersection.distance == -1 || solution < intersection.distance)) {
+            intersection.distance = solution;
+            intersection.sphere = &sphere;
+            intersection.interiorPoint = interiorPoint;
         }
     }
 
-    Intersection intersection;
-    intersection.ray = ray;
-    intersection.distance = nearestIntersectionDistance;
-    if (nearestIntersectionDistance != -1) {
-        intersection.point = ray.origin + ray.dir * nearestIntersectionDistance;
-        intersection.sphere = intersectedSphere;
+    // Calculate intersection point and normal
+    if (intersection.distance != -1) {
+        intersection.point = ray.origin + ray.dir * intersection.distance;
 
-        // Calculate the normal of the intersection
         vec4 normal = intersection.point - intersection.sphere->position;
-        mat4 sphereTransposeIVT;
-        InvertMatrix(transpose(Scale(intersection.sphere->scale)), sphereTransposeIVT);
+        // Invert normal for interior points
+        if (intersection.interiorPoint) {
+            normal = -normal;
+        }
+
+        mat4 trans = transpose(intersection.sphere->inverseTransform);
+        normal = trans * intersection.sphere->inverseTransform * normal;
         normal.w = 0;
-        intersection.normal = normalize(sphereTransposeIVT * sphereTransposeIVT * normal);
+        intersection.normal = normalize(normal);
     }
 
     return intersection;
