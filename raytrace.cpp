@@ -1,5 +1,3 @@
-#define _CRT_SECURE_NO_WARNINGS
-
 #include "matm.h"
 #include <fstream>
 #include <sstream>
@@ -143,7 +141,7 @@ void parseLine(const vector<string> &vs) {
         case RES:
             g_width = (int) toFloat(vs[1]);
             g_height = (int) toFloat(vs[2]);
-            g_colors.resize(g_width * g_height);
+            g_colors.resize((unsigned int) (g_width * g_height));
             break;
         case SPHERE:
             if (g_spheres.size() < MAX_SPHERES) {
@@ -233,7 +231,7 @@ Intersection calculateNearestIntersection(const Ray &ray) {
         float c = dot(S, S) - 1;
 
         // Solve equation
-        float solution = -1;
+        float solution;
         float discriminant = b * b - a * c; // Value under the root
 
         bool interiorPoint = false;
@@ -293,8 +291,6 @@ Intersection calculateNearestIntersection(const Ray &ray) {
  * Trace the color of a ray.
  */
 vec4 trace(const Ray &ray) {
-    vec4 color = g_backgroundColor;
-
     // Limit reflection level
     if (ray.reflectionLevel >= MAX_REFLECTIONS) {
         return vec4();
@@ -312,7 +308,7 @@ vec4 trace(const Ray &ray) {
     }
 
     // Calculate initial intersection color with ambient intensity
-    color = intersection.sphere->color * intersection.sphere->Ka * g_ambientIntensity;
+    vec4 color = intersection.sphere->color * intersection.sphere->Ka * g_ambientIntensity;
 
     // Calculate Blinn-Phong shading from light sources
     vec4 diffusion = vec4(0, 0, 0, 0);
@@ -435,4 +431,3 @@ int main(int argc, char *argv[]) {
     saveFile();
     return 0;
 }
-
