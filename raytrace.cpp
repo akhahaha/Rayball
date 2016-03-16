@@ -120,6 +120,10 @@ void initializeDatatypes() {
 }
 
 void parseLine(const vector<string> &vs) {
+    if (vs[0].empty()) {
+        return;
+    }
+
     switch (s_datatypes[vs[0]]) {
         case NEAR:
             g_near = toFloat(vs[1]);
